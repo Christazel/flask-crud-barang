@@ -5,12 +5,13 @@ import os
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'
 
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'flask_barang'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
+app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
+app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', '')
+app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'flask_barang')
 
 db_type = 'mysql'
 
@@ -65,7 +66,7 @@ def db_execute(sql, params=()):
         sql = sql.replace('%s', '?')
     cursor.execute(sql, params)
 
-app.secret_key = 'xxxxxyyyyyzzzzzz'
+app.secret_key = app.config['SECRET_KEY']
 
 login_manager = LoginManager()
 login_manager.init_app(app)
