@@ -3,6 +3,7 @@ import pymysql
 import sqlite3
 import os
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 
@@ -40,7 +41,7 @@ def init_sqlite_db(connection):
     )
     sqlite_cursor.execute(
         "INSERT OR IGNORE INTO users(username, password, nama) VALUES(?, ?, ?)",
-        ('admin', 'admin', 'Administrator')
+        ('admin', generate_password_hash('admin'), 'Administrator')
     )
     connection.commit()
 
@@ -65,6 +66,16 @@ def db_execute(sql, params=()):
     if db_type == 'sqlite':
         sql = sql.replace('%s', '?')
     cursor.execute(sql, params)
+
+
+def is_password_hashed(password_value):
+    return password_value.startswith('pbkdf2:') or password_value.startswith('scrypt:')
+
+
+def verify_password(stored_password, provided_password):
+    if is_password_hashed(stored_password):
+        return check_password_hash(stored_password, provided_password)
+    return stored_password == provided_password
 
 app.secret_key = app.config['SECRET_KEY']
 
@@ -94,9 +105,14 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        db_execute('SELECT * FROM users WHERE username=%s AND password=%s', (username, password))
+        db_execute('SELECT * FROM users WHERE username=%s', (username,))
         user_data = cursor.fetchone()
-        if user_data:
+        if user_data and verify_password(user_data[2], password):
+            if not is_password_hashed(user_data[2]):
+                # Upgrade legacy plaintext passwords transparently after successful login.
+                new_hash = generate_password_hash(password)
+                db_execute('UPDATE users SET password=%s WHERE id_user=%s', (new_hash, user_data[0]))
+                mysql.commit()
             user = User(user_data[0], user_data[1], user_data[2],user_data[3])
 
             login_user(user)
@@ -126,6 +142,7 @@ def dashboard():
     return render_template('index.html', datas=datas)
 
 @app.route('/tambah_barang', methods=['GET', 'POST'])
+@login_required
 def tambah_barang():
     if request.method == 'POST':
         try:
@@ -143,6 +160,7 @@ def tambah_barang():
     return render_template('tambah_barang.html')
 
 @app.route('/edit_barang/<int:id>', methods=['GET'])
+@login_required
 def edit_barang(id):
     sql = "select * from barangs where id_barang = %s"
     db_execute(sql, (id,))
@@ -150,6 +168,7 @@ def edit_barang(id):
     return render_template('edit_barang.html', datas=datas)
 
 @app.route('/update_barang', methods=['GET', 'POST'])
+@login_required
 def update_barang():
     if request.method == 'POST':
         try:
@@ -168,6 +187,7 @@ def update_barang():
     return render_template('tambah_barang.html')
 
 @app.route('/hapus_barang/<int:id>', methods=['GET'])
+@login_required
 def hapus_barang(id):
     try:
         if id == None:
