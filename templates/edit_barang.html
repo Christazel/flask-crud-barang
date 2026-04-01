@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{{ url_for('static', filename = 'css/bootstrap.min.css') }}" rel="stylesheet">
+    <title>Dashboard</title>
+</head>
+<body>
+
+    <div class="wrapper">
+        <nav class="navbar navbar-expand-sm navbar-dark bg-success">
+            <a class="navbar-brand" href="#">Dashboard Manage Barang</a>
+            <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#collapsibleNavId" aria-controls="collapsibleNavId"
+                aria-expanded="false" aria-label="Toggle navigation"></button>
+            <div class="collapse navbar-collapse" id="collapsibleNavId">
+                <ul class="navbar-nav ml-auto mt-2 mt-lg-0">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout from {{ current_user.nama }}</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        {% for data in datas %}
+        <div class="container">
+            <div class="content pt-5">
+                <h3 class="text-center">Edit Barang</h3>
+                <form id="formEditBarang" action="{{ url_for('update_barang') }}" method="post">
+                    <input type="hidden" name="id_barang" value="{{ data[0] }}">
+                    <div class="form-group">
+                        <label for="">Nama barang</label>
+                        <input type="text" class="form-control" value="{{ data[1] }}" name="nama_barang" id="" aria-describedby="helpId" placeholder="">
+                    </div>
+                    <div class="form-group">
+                        <label for="">Merk barang</label>
+                        <input type="text" class="form-control" value="{{ data[2] }}" name="merk_barang" id="" aria-describedby="helpId" placeholder="">
+                    </div>
+                    <div class="form-group">
+                        <label for="">Stok barang</label>
+                        <input type="number" class="form-control" value="{{ data[3] }}" name="stok_barang" id="" aria-describedby="helpId" placeholder="">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-success btn-block btn-update" type="button">Update</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+    <script>
+        $(document).ready(function(){
+            $('.btn-update').on('click', function(e){
+                e.preventDefault()
+                let nama_barang = $("input[name='nama_barang']").val()
+                let merk_barang = $("input[name='merk_barang']").val()
+                let stok_barang = $("input[name='stok_barang']").val()
+
+                if(!nama_barang){
+                    alert('nama barang tidak boleh kosong!')
+                    return
+                }
+                if(!merk_barang){
+                    alert('Merk barang tidak boleh kosong!')
+                    return
+                }
+                if(!stok_barang){
+                    alert('Stok barang tidak boleh kosong!')
+                    return
+                }
+                
+
+                $("#formEditBarang").submit()
+            })
+        })
+    </script>
+
+</body>
+</html>

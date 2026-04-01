@@ -1,0 +1,5 @@
+#Note : Import database dulu!
+
+1. Jalankan script "myenv\Scripts\activate" di command prompt
+2. jalankan "py app.py"
+3. http://127.0.0.1:5000/
