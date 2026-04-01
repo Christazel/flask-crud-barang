@@ -25,6 +25,16 @@
             </div>
         </nav>
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container pt-3">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% for data in datas %}
         <div class="container">
             <div class="content pt-5">
@@ -32,19 +42,19 @@
                 <form id="formEditBarang" action="{{ url_for('update_barang') }}" method="post">
                     <input type="hidden" name="id_barang" value="{{ data[0] }}">
                     <div class="form-group">
-                        <label for="">Nama barang</label>
-                        <input type="text" class="form-control" value="{{ data[1] }}" name="nama_barang" id="" aria-describedby="helpId" placeholder="">
+                        <label for="nama_barang">Nama barang</label>
+                        <input type="text" class="form-control" value="{{ data[1] }}" name="nama_barang" id="nama_barang" required>
                     </div>
                     <div class="form-group">
-                        <label for="">Merk barang</label>
-                        <input type="text" class="form-control" value="{{ data[2] }}" name="merk_barang" id="" aria-describedby="helpId" placeholder="">
+                        <label for="merk_barang">Merk barang</label>
+                        <input type="text" class="form-control" value="{{ data[2] }}" name="merk_barang" id="merk_barang" required>
                     </div>
                     <div class="form-group">
-                        <label for="">Stok barang</label>
-                        <input type="number" class="form-control" value="{{ data[3] }}" name="stok_barang" id="" aria-describedby="helpId" placeholder="">
+                        <label for="stok_barang">Stok barang</label>
+                        <input type="number" class="form-control" value="{{ data[3] }}" name="stok_barang" id="stok_barang" min="0" required>
                     </div>
                     <div class="form-group">
-                        <button class="btn btn-success btn-block btn-update" type="button">Update</button>
+                        <button class="btn btn-success btn-block btn-update" type="submit">Update</button>
                     </div>
                 </form>
 
@@ -58,7 +68,7 @@
 
     <script>
         $(document).ready(function(){
-            $('.btn-update').on('click', function(e){
+            $('#formEditBarang').on('submit', function(e){
                 e.preventDefault()
                 let nama_barang = $("input[name='nama_barang']").val()
                 let merk_barang = $("input[name='merk_barang']").val()
@@ -78,7 +88,7 @@
                 }
                 
 
-                $("#formEditBarang").submit()
+                e.currentTarget.submit()
             })
         })
     </script>

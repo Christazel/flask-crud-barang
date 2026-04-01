@@ -24,26 +24,24 @@
         <div class="form container">
             <div class="row align-items-center justify-content-center" style="height: 80vh;">
                 <div class="col-md-8">
-                    {% with messages = get_flashed_messages() %}
+                    {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
-                            <ul class="alert alert-danger" style="list-style-type: none;">
-                                {% for message in messages %}
-                                    <li>{{ message }}</li>
-                                {% endfor %}
-                            </ul>
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+                            {% endfor %}
                         {% endif %}
                     {% endwith %}
                     <form id="formLogin" action="{{ url_for('login') }}" method="post">
                         <div class="form-group">
-                        <label for="">Username</label>
-                        <input type="text" class="form-control" name="username" id="" aria-describedby="helpId" placeholder="">
+                        <label for="username">Username</label>
+                        <input type="text" class="form-control" name="username" id="username" autocomplete="username" placeholder="Masukkan username">
                         </div>
                         <div class="form-group">
-                        <label for="">Password</label>
-                        <input type="password" class="form-control" name="password" id="" aria-describedby="helpId" placeholder="">
+                        <label for="password">Password</label>
+                        <input type="password" class="form-control" name="password" id="password" autocomplete="current-password" placeholder="Masukkan password">
                         </div>
                         <div class="form-group">
-                            <button class="btn btn-success btn-block btn-login" type="button">Masuk</button>
+                            <button class="btn btn-success btn-block btn-login" type="submit">Masuk</button>
                         </div>
                     </form>
                 </div>
@@ -57,7 +55,7 @@
 
     <script>
         $(document).ready(function(){
-            $('.btn-login').on('click', function(e){
+            $('#formLogin').on('submit', function(e){
                 e.preventDefault()
                 let username = $("input[name='username']").val()
                 let password = $("input[name='password']").val()
@@ -71,7 +69,7 @@
                     return
                 }
 
-                $("#formLogin").submit()
+                e.currentTarget.submit()
             })
         })
     </script>

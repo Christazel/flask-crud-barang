@@ -29,21 +29,29 @@
             <div class="content pt-5">
                 <h3 class="text-center">Tambah Barang</h3>
 
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
                 <form id="formTambahBarang" action="{{ url_for('tambah_barang') }}" method="post">
                     <div class="form-group">
-                        <label for="">Nama barang</label>
-                        <input type="text" class="form-control" name="nama_barang" id="" aria-describedby="helpId" placeholder="">
+                        <label for="nama_barang">Nama barang</label>
+                        <input type="text" class="form-control" name="nama_barang" id="nama_barang" placeholder="Contoh: Laptop" required>
                     </div>
                     <div class="form-group">
-                        <label for="">Merk barang</label>
-                        <input type="text" class="form-control" name="merk_barang" id="" aria-describedby="helpId" placeholder="">
+                        <label for="merk_barang">Merk barang</label>
+                        <input type="text" class="form-control" name="merk_barang" id="merk_barang" placeholder="Contoh: Lenovo" required>
                     </div>
                     <div class="form-group">
-                        <label for="">Stok barang</label>
-                        <input type="number" class="form-control" name="stok_barang" id="" aria-describedby="helpId" placeholder="">
+                        <label for="stok_barang">Stok barang</label>
+                        <input type="number" class="form-control" name="stok_barang" id="stok_barang" min="0" placeholder="0" required>
                     </div>
                     <div class="form-group">
-                        <button class="btn btn-success btn-block btn-tambah" type="button">Simpan</button>
+                        <button class="btn btn-success btn-block btn-tambah" type="submit">Simpan</button>
                     </div>
                 </form>
 
@@ -56,7 +64,7 @@
 
     <script>
         $(document).ready(function(){
-            $('.btn-tambah').on('click', function(e){
+            $('#formTambahBarang').on('submit', function(e){
                 e.preventDefault()
                 let nama_barang = $("input[name='nama_barang']").val()
                 let merk_barang = $("input[name='merk_barang']").val()
@@ -76,7 +84,7 @@
                 }
                 
 
-                $("#formTambahBarang").submit()
+                e.currentTarget.submit()
             })
         })
     </script>

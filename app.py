@@ -15,6 +15,7 @@ app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', '')
 app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'flask_barang')
 
 db_type = 'mysql'
+db_connection = None
 
 
 def init_sqlite_db(connection):
@@ -47,25 +48,38 @@ def init_sqlite_db(connection):
 
 
 try:
-    mysql = pymysql.connect(
+    db_connection = pymysql.connect(
         host=app.config['MYSQL_HOST'],
         user=app.config['MYSQL_USER'],
         password=app.config['MYSQL_PASSWORD'],
         database=app.config['MYSQL_DB']
     )
-    cursor = mysql.cursor()
 except Exception:
     db_type = 'sqlite'
     os.makedirs('instance', exist_ok=True)
-    mysql = sqlite3.connect('instance/flask_barang.db', check_same_thread=False)
-    cursor = mysql.cursor()
-    init_sqlite_db(mysql)
+    db_connection = sqlite3.connect('instance/flask_barang.db', check_same_thread=False)
+    init_sqlite_db(db_connection)
 
 
-def db_execute(sql, params=()):
+def db_execute(sql, params=(), fetch='none'):
     if db_type == 'sqlite':
         sql = sql.replace('%s', '?')
+    cursor = db_connection.cursor()
     cursor.execute(sql, params)
+    if fetch == 'one':
+        result = cursor.fetchone()
+        cursor.close()
+        return result
+    if fetch == 'all':
+        result = cursor.fetchall()
+        cursor.close()
+        return result
+    cursor.close()
+    return None
+
+
+def db_commit():
+    db_connection.commit()
 
 
 def is_password_hashed(password_value):
@@ -90,30 +104,45 @@ class User(UserMixin):
         self.password = password
         self.nama = nama
     def get_id(self):
-           return (self.username)
+        return self.username
+
+
+def parse_stok(raw_value):
+    try:
+        stok = int(raw_value)
+        if stok < 0:
+            return None
+        return stok
+    except (TypeError, ValueError):
+        return None
 
 @login_manager.user_loader
 def load_user(username):
-    db_execute('SELECT * FROM users WHERE username=%s', (username,))
-    user_data = cursor.fetchone()
+    user_data = db_execute('SELECT * FROM users WHERE username=%s', (username,), fetch='one')
     if user_data:
-        return User(user_data[0], user_data[1], user_data[2],user_data[3] )
+        return User(user_data[0], user_data[1], user_data[2], user_data[3])
     return None
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        db_execute('SELECT * FROM users WHERE username=%s', (username,))
-        user_data = cursor.fetchone()
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+        if not username or not password:
+            flash('Username dan password wajib diisi.', 'danger')
+            return render_template('login.html')
+
+        user_data = db_execute('SELECT * FROM users WHERE username=%s', (username,), fetch='one')
         if user_data and verify_password(user_data[2], password):
             if not is_password_hashed(user_data[2]):
                 # Upgrade legacy plaintext passwords transparently after successful login.
                 new_hash = generate_password_hash(password)
                 db_execute('UPDATE users SET password=%s WHERE id_user=%s', (new_hash, user_data[0]))
-                mysql.commit()
-            user = User(user_data[0], user_data[1], user_data[2],user_data[3])
+                db_commit()
+            user = User(user_data[0], user_data[1], user_data[2], user_data[3])
 
             login_user(user)
             flash('Login successful!', 'success')
@@ -132,13 +161,13 @@ def logout():
 @app.route('/')
 @login_required
 def dashboard():
+    datas = []
     try:
-        sql = "select * from barangs"
-        db_execute(sql)
-        datas = cursor.fetchall()
-        print(datas)
+        sql = "SELECT * FROM barangs"
+        datas = db_execute(sql, fetch='all')
     except Exception as e:
         print(e)
+        flash('Gagal mengambil data barang.', 'danger')
     return render_template('index.html', datas=datas)
 
 @app.route('/tambah_barang', methods=['GET', 'POST'])
@@ -146,12 +175,17 @@ def dashboard():
 def tambah_barang():
     if request.method == 'POST':
         try:
-            nama_barang = request.form.get('nama_barang')
-            merk_barang = request.form.get('merk_barang')
-            stok_barang = request.form.get('stok_barang')
+            nama_barang = (request.form.get('nama_barang') or '').strip()
+            merk_barang = (request.form.get('merk_barang') or '').strip()
+            stok_barang = parse_stok(request.form.get('stok_barang'))
+
+            if not nama_barang or not merk_barang or stok_barang is None:
+                flash('Data barang tidak valid. Periksa kembali input kamu.', 'danger')
+                return render_template('tambah_barang.html')
+
             sql = "INSERT into barangs(nama_barang, merk_barang, stok_barang) VALUES(%s, %s, %s)"
             db_execute(sql, (nama_barang, merk_barang, stok_barang))
-            mysql.commit()
+            db_commit()
             flash('Add barang successful!', 'success')
             return redirect(url_for('dashboard'))
         except Exception as e:
@@ -162,9 +196,11 @@ def tambah_barang():
 @app.route('/edit_barang/<int:id>', methods=['GET'])
 @login_required
 def edit_barang(id):
-    sql = "select * from barangs where id_barang = %s"
-    db_execute(sql, (id,))
-    datas = cursor.fetchall()
+    sql = "SELECT * FROM barangs WHERE id_barang = %s"
+    datas = db_execute(sql, (id,), fetch='all')
+    if not datas:
+        flash('Data barang tidak ditemukan.', 'warning')
+        return redirect(url_for('dashboard'))
     return render_template('edit_barang.html', datas=datas)
 
 @app.route('/update_barang', methods=['GET', 'POST'])
@@ -173,33 +209,38 @@ def update_barang():
     if request.method == 'POST':
         try:
             id_barang = request.form.get('id_barang')
-            nama_barang = request.form.get('nama_barang')
-            merk_barang = request.form.get('merk_barang')
-            stok_barang = request.form.get('stok_barang')
+            nama_barang = (request.form.get('nama_barang') or '').strip()
+            merk_barang = (request.form.get('merk_barang') or '').strip()
+            stok_barang = parse_stok(request.form.get('stok_barang'))
+
+            if not id_barang or not nama_barang or not merk_barang or stok_barang is None:
+                flash('Update barang failed. Data tidak valid.', 'danger')
+                return redirect(url_for('dashboard'))
+
             sql = "UPDATE barangs SET nama_barang=%s, merk_barang=%s, stok_barang=%s WHERE id_barang=%s"
             db_execute(sql, (nama_barang, merk_barang, stok_barang, id_barang))
-            mysql.commit()
+            db_commit()
             flash('Update barang successful!', 'success')
             return redirect(url_for('dashboard'))
         except Exception as e:
             print(e)
             flash('Update barang failed.', 'danger')
-    return render_template('tambah_barang.html')
+    return redirect(url_for('dashboard'))
 
 @app.route('/hapus_barang/<int:id>', methods=['GET'])
 @login_required
 def hapus_barang(id):
     try:
-        if id == None:
+        if id is None:
             flash('Id invalid.', 'danger')
             return redirect(url_for('dashboard'))
-        sql = "delete from barangs where id_barang = %s"
+        sql = "DELETE FROM barangs WHERE id_barang = %s"
         db_execute(sql, (id,))
-        mysql.commit()
-        flash('User deleted successfully!')
+        db_commit()
+        flash('Barang deleted successfully!', 'success')
     except Exception as e:
         print(e)
-        flash('Add barang failed.', 'danger')
+        flash('Delete barang failed.', 'danger')
     return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
