@@ -8,6 +8,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
 app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
@@ -42,9 +44,54 @@ def init_sqlite_db(connection):
     )
     sqlite_cursor.execute(
         "INSERT OR IGNORE INTO users(username, password, nama) VALUES(?, ?, ?)",
+        ('user1', '123', 'User Satu')
+    )
+    sqlite_cursor.execute(
+        "INSERT OR IGNORE INTO users(username, password, nama) VALUES(?, ?, ?)",
         ('admin', generate_password_hash('admin'), 'Administrator')
     )
     connection.commit()
+
+
+def init_mysql_db(connection):
+    mysql_cursor = connection.cursor()
+    mysql_cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id_user INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(15) NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            nama VARCHAR(150) NOT NULL
+        )
+        """
+    )
+    mysql_cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS barangs (
+            id_barang INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            nama_barang VARCHAR(100) NOT NULL,
+            merk_barang VARCHAR(30) NOT NULL,
+            stok_barang INT NOT NULL
+        )
+        """
+    )
+
+    mysql_cursor.execute('SELECT id_user FROM users WHERE username=%s', ('user1',))
+    if mysql_cursor.fetchone() is None:
+        mysql_cursor.execute(
+            'INSERT INTO users(username, password, nama) VALUES(%s, %s, %s)',
+            ('user1', '123', 'User Satu')
+        )
+
+    mysql_cursor.execute('SELECT id_user FROM users WHERE username=%s', ('admin',))
+    if mysql_cursor.fetchone() is None:
+        mysql_cursor.execute(
+            'INSERT INTO users(username, password, nama) VALUES(%s, %s, %s)',
+            ('admin', generate_password_hash('admin'), 'Administrator')
+        )
+
+    connection.commit()
+    mysql_cursor.close()
 
 
 try:
@@ -54,6 +101,7 @@ try:
         password=app.config['MYSQL_PASSWORD'],
         database=app.config['MYSQL_DB']
     )
+    init_mysql_db(db_connection)
 except Exception:
     db_type = 'sqlite'
     os.makedirs('instance', exist_ok=True)
@@ -152,7 +200,7 @@ def login():
 
     return render_template('login.html')
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
@@ -203,7 +251,7 @@ def edit_barang(id):
         return redirect(url_for('dashboard'))
     return render_template('edit_barang.html', datas=datas)
 
-@app.route('/update_barang', methods=['GET', 'POST'])
+@app.route('/update_barang', methods=['POST'])
 @login_required
 def update_barang():
     if request.method == 'POST':
@@ -227,7 +275,7 @@ def update_barang():
             flash('Update barang failed.', 'danger')
     return redirect(url_for('dashboard'))
 
-@app.route('/hapus_barang/<int:id>', methods=['GET'])
+@app.route('/hapus_barang/<int:id>', methods=['POST'])
 @login_required
 def hapus_barang(id):
     try:
@@ -244,4 +292,5 @@ def hapus_barang(id):
     return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug = (os.getenv('FLASK_DEBUG') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    app.run(debug=debug)

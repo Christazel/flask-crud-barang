@@ -19,7 +19,9 @@
                         <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('logout') }}">Logout from {{ current_user.nama }}</a>
+                        <form action="{{ url_for('logout') }}" method="post" class="m-0 p-0">
+                            <button type="submit" class="nav-link btn btn-link text-white">Logout from {{ current_user.nama }}</button>
+                        </form>
                     </li>
                 </ul>
             </div>
